@@ -1,0 +1,32 @@
+[package]
+name = "ricksponse"
+version = "0.1.0"
+edition = "2021"
+authors = ["Anders Blenstrup-Pedersen <abp-git@ryuu.technology>"]
+description = "A request/response structure allowing for a multitude of encodings/decodings"
+readme = "README.md"
+categories = ["Request-Response", "Request", "Response", "Encoding", "Decoding"]
+license = "MIT"
+repository = "https://github.com/nebula-technologies/ricksponse"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = ["actix"]
+actix = []
+
+[dependencies]
+actix-http = "3.0.0-beta.19"
+actix-web = "4.0.0-beta.21"
+bytes = "1.1.0"
+derive_more = "0.99.17"
+futures = "0.3.19"
+futures-core = "0.3.19"
+futures-util = "0.3.19"
+http = "0.2.6"
+mime = "0.3.16"
+railsgun = "1.0.3"
+serde = "1.0.135"
+serde_derive = "1.0.135"
+simple_serde = { version = "0.3.6", features = ["http"] }
+uuid = { version = "0.8.2", features = ["serde", "v4"] }
