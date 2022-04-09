@@ -1,4 +1,3 @@
-#![feature(ready_macro)]
 extern crate actix_http;
 extern crate actix_web;
 extern crate futures;

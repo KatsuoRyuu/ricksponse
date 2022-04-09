@@ -13,7 +13,7 @@ use std::io::ErrorKind;
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::pin::Pin;
-use std::task::{ready, Context, Poll};
+use std::task::{Context, Poll};
 use std::{ops, sync::Arc};
 
 const DEFAULT_LIMIT: usize = 41_943_040; // 40 mb
@@ -125,7 +125,12 @@ impl<T: DeserializeOwned> Future for RicksponseBody<T> {
                 content_type,
                 ..
             } => loop {
-                let res = ready!(Pin::new(&mut *payload).poll_next(cx));
+                let res = match Pin::new(&mut *payload).poll_next(cx) {
+                    std::task::Poll::Ready(t) => t,
+                    std::task::Poll::Pending => {
+                        return std::task::Poll::Pending;
+                    }
+                };
                 match res {
                     Some(chunk) => {
                         let chunk = chunk?;
