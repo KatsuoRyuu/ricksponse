@@ -147,6 +147,7 @@ impl<T: Serialize> Responder for Ricksponse<T> {
 /// ```rust
 /// use actix_web::{web, App};
 /// use serde_derive::Deserialize;
+/// use ricksponse::Ricksponse;
 ///
 /// #[derive(Deserialize)]
 /// struct Info {
@@ -154,8 +155,8 @@ impl<T: Serialize> Responder for Ricksponse<T> {
 /// }
 ///
 /// /// deserialize `Info` from request's body
-/// async fn index(info: web::SuperStruct<Info>) -> String {
-///     format!("Welcome {}!", info.username)
+/// async fn index(info: Ricksponse<Info>) -> String {
+/// format!("Welcome {}!", info.username)
 /// }
 ///
 /// fn main() {
