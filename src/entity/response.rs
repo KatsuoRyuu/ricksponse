@@ -24,3 +24,21 @@ pub struct Response<T: Serialize> {
     pub content: Option<T>,
     pub(crate) status: ResponseStatus,
 }
+
+#[cfg(test)]
+mod test {
+    use super::Response;
+    use simple_serde::SimpleEncoder;
+
+    #[test]
+    fn default_response_test() {
+        let response: Response<String> = Response {
+            content: None,
+            status: Default::default(),
+        };
+        let response_ser = response.encode("yaml");
+
+        println!("{}", response_ser);
+        assert_eq!()
+    }
+}

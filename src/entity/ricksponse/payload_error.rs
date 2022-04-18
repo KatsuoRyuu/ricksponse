@@ -1,8 +1,7 @@
 use actix_http::error::PayloadError;
 use actix_web::ResponseError;
-use derive_more::{Display, Error};
+use derive_more::Display;
 use http::StatusCode;
-use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Display)]
 #[non_exhaustive]

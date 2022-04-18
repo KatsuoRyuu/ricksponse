@@ -1,15 +1,11 @@
 use crate::entity::response::{Response, ResponseStatus};
-use crate::entity::ricksponse::ricksponse_body::RicksponseBody;
 use crate::entity::ricksponse::ricksponse_extract_fut::RicksponseExtractFut;
 use crate::error::Error;
-use crate::MAX_SIZE;
 use actix_http::body::BoxBody;
 use actix_web::{FromRequest, HttpRequest, HttpResponse, Responder};
-use http::header::CONTENT_LENGTH;
-use railsgun::Merge;
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
-use simple_serde::{ContentType, SimpleDecoder, SimpleEncoder};
+use serde::Serialize;
+use simple_serde::{ContentType, SimpleEncoder};
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::{Deref, DerefMut};
 use uuid::Uuid;
@@ -65,7 +61,7 @@ trait ToHateoasResponse<T> {
 }
 
 impl<T: Serialize> ToHateoasResponse<Ricksponse<Response<T>>> for Ricksponse<T> {
-    fn to_hateoas_response(mut self) -> Ricksponse<Response<T>> {
+    fn to_hateoas_response(self) -> Ricksponse<Response<T>> {
         Ricksponse::new(Response {
             content: Some(self.inner),
             status: ResponseStatus {
@@ -112,7 +108,7 @@ trait ToResponse<R> {
 }
 
 impl<T: Serialize> ToResponse<Ricksponse<Option<T>>> for Ricksponse<Response<T>> {
-    fn to_response(mut self) -> Ricksponse<Option<T>> {
+    fn to_response(self) -> Ricksponse<Option<T>> {
         Ricksponse::new(self.inner.content)
     }
 }
@@ -121,24 +117,26 @@ impl<T: Serialize> Responder for Ricksponse<T> {
     type Body = BoxBody;
 
     fn respond_to(self, req: &HttpRequest) -> HttpResponse<Self::Body> {
-        req.headers()
+        Ok(req
+            .headers()
             .get_all("Accept")
             .filter_map(|h| ContentType::try_from(h).ok())
-            .collect::<Vec<ContentType>>()
-            .try_into()
-            .map_err(Error::from)
-            .and_then(|mut t: Vec<ContentType>| {
-                t.reverse();
-                t.pop()
-                    .ok_or_else(|| Error::FailedToGetContentTypeFromHeader)
-            })
-            .and_then(|content_type| {
-                self.inner
-                    .encode(&content_type)
-                    .map(|t| HttpResponse::Ok().content_type(content_type).body(t))
-                    .map_err(Error::from)
-            })
-            .unwrap()
+            .collect::<Vec<ContentType>>())
+        .and_then(|mut t: Vec<ContentType>| {
+            t.reverse();
+            t.pop().ok_or(Error::FailedToGetContentTypeFromHeader)
+        })
+        .and_then(|content_type| {
+            self.inner
+                .encode(&content_type)
+                .map(|t| {
+                    HttpResponse::Ok()
+                        .content_type(content_type)
+                        .body(t.to_vec())
+                })
+                .map_err(Error::from)
+        })
+        .unwrap()
     }
 }
 

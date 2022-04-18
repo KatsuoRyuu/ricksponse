@@ -28,5 +28,5 @@ mime = "0.3.16"
 railsgun = "1.0.3"
 serde = "1.0.135"
 serde_derive = "1.0.135"
-simple_serde = { version = "0.3.6", features = ["http"] }
+simple_serde = { version = "1.0.0-rc1", features = ["http"] }
 uuid = { version = "0.8.2", features = ["serde", "v4"] }
