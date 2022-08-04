@@ -38,7 +38,7 @@ mod test {
         };
         let response_ser = response.encode("yaml");
 
-        println!("{}", response_ser);
-        assert_eq!()
+        // println!("{}", response_ser);
+        // assert_eq!()
     }
 }
