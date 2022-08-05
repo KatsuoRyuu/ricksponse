@@ -56,7 +56,7 @@ where
     }
 }
 
-trait ToHateoasResponse<T> {
+pub trait ToHateoasResponse<T> {
     fn to_hateoas_response(self) -> T;
 }
 
@@ -74,7 +74,7 @@ impl<T: Serialize> ToHateoasResponse<Ricksponse<Response<T>>> for Ricksponse<T> 
     }
 }
 
-trait HateoasResponse {
+pub trait HateoasResponse {
     fn set_status_message(&mut self, m: String) -> &mut Self;
     fn set_status_code(&mut self, m: u32) -> &mut Self;
     fn set_status_http_code(&mut self, m: u32) -> &mut Self;
@@ -103,7 +103,7 @@ impl<T: Serialize> HateoasResponse for Ricksponse<Response<T>> {
     }
 }
 
-trait ToResponse<R> {
+pub trait ToResponse<R> {
     fn to_response(self) -> R;
 }
 
@@ -117,26 +117,29 @@ impl<T: Serialize> Responder for Ricksponse<T> {
     type Body = BoxBody;
 
     fn respond_to(self, req: &HttpRequest) -> HttpResponse<Self::Body> {
-        Ok(req
+        let mut content_type_collection = req
             .headers()
             .get_all("Accept")
             .filter_map(|h| ContentType::try_from(h).ok())
-            .collect::<Vec<ContentType>>())
-        .and_then(|mut t: Vec<ContentType>| {
-            t.reverse();
-            t.pop().ok_or(Error::FailedToGetContentTypeFromHeader)
-        })
-        .and_then(|content_type| {
-            self.inner
-                .encode(&content_type)
-                .map(|t| {
-                    HttpResponse::Ok()
-                        .content_type(content_type)
-                        .body(t.to_vec())
-                })
-                .map_err(Error::from)
-        })
-        .unwrap()
+            .collect::<Vec<ContentType>>();
+        if content_type_collection.is_empty() {
+            content_type_collection = vec![ContentType::Json];
+        }
+        content_type_collection.reverse();
+        content_type_collection
+            .pop()
+            .ok_or(Error::FailedToGetContentTypeFromHeader)
+            .and_then(|content_type| {
+                self.inner
+                    .encode(&content_type)
+                    .map(|t| {
+                        HttpResponse::Ok()
+                            .content_type(content_type)
+                            .body(t.to_vec())
+                    })
+                    .map_err(Error::from)
+            })
+            .unwrap_or_else(|e| HttpResponse::from(HttpResponse::InternalServerError()))
     }
 }
 

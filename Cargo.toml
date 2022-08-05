@@ -1,6 +1,6 @@
 [package]
 name = "ricksponse"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Anders Blenstrup-Pedersen <abp-git@ryuu.technology>"]
 description = "A request/response structure allowing for a multitude of encodings/decodings"
