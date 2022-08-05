@@ -4,26 +4,30 @@ use crate::error::Error;
 use actix_http::Payload;
 use actix_web::HttpRequest;
 use serde::de::DeserializeOwned;
+use std::fmt::Display;
 use std::future::Future;
+use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-pub struct RicksponseExtractFut<T> {
-    pub(crate) req: Option<HttpRequest>,
+pub struct RicksponseExtractFut<T, E> {
+    pub(crate) _req: Option<HttpRequest>,
     pub(crate) fut: RicksponseBody<T>,
+    pub(crate) _phantom: Pin<Box<PhantomData<E>>>,
 }
 
-impl<T: DeserializeOwned> RicksponseExtractFut<T> {
-    pub(crate) fn new(r: HttpRequest, p: &mut Payload) -> RicksponseExtractFut<T> {
+impl<T: DeserializeOwned, E: DeserializeOwned> RicksponseExtractFut<T, E> {
+    pub(crate) fn new(r: HttpRequest, p: &mut Payload) -> RicksponseExtractFut<T, E> {
         RicksponseExtractFut {
-            req: Some(r.clone()),
+            _req: Some(r.clone()),
             fut: RicksponseBody::new(r, p),
+            _phantom: Box::pin(Default::default()),
         }
     }
 }
 
-impl<T: DeserializeOwned> Future for RicksponseExtractFut<T> {
-    type Output = Result<Ricksponse<T>, Error>;
+impl<T: DeserializeOwned, E: DeserializeOwned + Display> Future for RicksponseExtractFut<T, E> {
+    type Output = Result<Ricksponse<T, E>, Error>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.get_mut();
@@ -34,17 +38,8 @@ impl<T: DeserializeOwned> Future for RicksponseExtractFut<T> {
             }
         };
         Poll::Ready(match res {
-            Err(err) => {
-                let req = this.req.take().unwrap();
-                println!(
-                    "Failed to deserialize payload. \
-                         Request path: {}; error: {:?}",
-                    req.path(),
-                    err
-                );
-                Err(err.into())
-            }
-            Ok(data) => Ok(Ricksponse::new(data)),
+            Err(err) => Err(err.into()),
+            Ok(data) => Ok(Ricksponse::from(Ok(data))),
         })
     }
 }

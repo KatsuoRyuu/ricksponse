@@ -4,7 +4,7 @@ use serde::Serialize;
 pub struct ResponseStatus {
     pub(crate) message: Option<String>,
     pub(crate) code: Option<u32>,
-    pub(crate) http_status_code: Option<u32>,
+    pub(crate) http_status_code: Option<u16>,
     pub(crate) session: Option<uuid::Uuid>,
 }
 

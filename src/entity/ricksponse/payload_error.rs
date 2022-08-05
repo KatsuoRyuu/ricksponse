@@ -33,6 +33,14 @@ pub enum RicksponsePayloadError {
     /// Payload error
     #[display(fmt = "Error that occur during reading payload: {}", _0)]
     Payload(PayloadError),
+
+    /// Payload error
+    #[display(
+        fmt = "Failed to deserialize payload under future stream assembly. Request path {}, Error {}",
+        _0,
+        _1
+    )]
+    RickspnsePayloadError(String, Box<RicksponsePayloadError>),
 }
 
 impl From<PayloadError> for RicksponsePayloadError {
@@ -51,6 +59,7 @@ impl ResponseError for RicksponsePayloadError {
             Self::Overflow { limit: _ } => StatusCode::PAYLOAD_TOO_LARGE,
             Self::Serialize(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Payload(err) => err.status_code(),
+            Self::RickspnsePayloadError(_, _) => StatusCode::INTERNAL_SERVER_ERROR,
             _ => StatusCode::BAD_REQUEST,
         }
     }
