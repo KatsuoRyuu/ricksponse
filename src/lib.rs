@@ -9,7 +9,7 @@ extern crate simple_serde;
 
 mod entity;
 mod error;
-mod helper;
+mod helpers;
 
 pub type Result<T> = std::result::Result<T, error::Error>;
 
@@ -17,6 +17,10 @@ const MAX_SIZE: usize = 41_943_040;
 
 pub use entity::ricksponse::payload_error::RicksponsePayloadError;
 pub use entity::ricksponse::ricksponse::{
-    HateoasResponse, Ricksponse, ToHateoasResponse, DebuggableAny,
+    DebuggableAny, HateoasResponse, Ricksponse, ToHateoasResponse,
 };
 pub use error::Error;
+pub mod helpers_prelude {
+    pub use crate::helpers::get_from_hash_set;
+    pub use crate::helpers::option::OptionsExtended;
+}

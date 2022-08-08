@@ -1,4 +1,4 @@
-use crate::entity::response::{Response, ResponseStatus};
+use crate::entity::response::{Metadata, Response, Status};
 use crate::entity::ricksponse::ricksponse_extract_fut::RicksponseExtractFut;
 use crate::error::Error;
 use actix_http::body::BoxBody;
@@ -77,8 +77,8 @@ impl<T, E: DebuggableAny> From<Result<T, E>> for Ricksponse<T> {
 
 impl<T: Serialize> From<Response<T>> for Ricksponse<Response<T>> {
     fn from(r: Response<T>) -> Self {
-        let http_code = r.metadata.http_status_code;
-        let message = r.metadata.message.clone();
+        let http_code = r.status.as_ref().and_then(|status| status.http_status_code);
+        let message = r.status.as_ref().and_then(|status| status.message.clone());
         Self::Data {
             data: r,
             http_code,
@@ -143,26 +143,32 @@ impl<T: Serialize> ToHateoasResponse<Ricksponse<Response<T>>> for Ricksponse<T> 
                 http_code,
                 message,
             } => Ricksponse::new(Response {
-                content: Some(data),
-                metadata: ResponseStatus {
+                api_version: "Unknown.invalid/0.0.0".to_string(),
+                kind: "".to_string(),
+                metadata: Metadata::default(),
+                spec: None,
+                status: Some(Status {
                     message,
                     code: None,
                     http_status_code: http_code,
                     session: None,
-                },
+                }),
             }),
             Self::Error {
                 error,
                 http_code,
                 message,
             } => Ricksponse::from(Response {
-                content: None,
-                metadata: ResponseStatus {
-                    message: message.or_else(|| error.map(|e| format!("{:?}", e))),
+                api_version: "Unknown.invalid/0.0.0".to_string(),
+                kind: "".to_string(),
+                metadata: Metadata::default(),
+                spec: None,
+                status: Some(Status {
+                    message,
                     code: None,
                     http_status_code: http_code,
                     session: None,
-                },
+                }),
             }),
         }
     }
@@ -178,7 +184,9 @@ pub trait HateoasResponse {
 impl<T: Serialize> HateoasResponse for Ricksponse<Response<T>> {
     fn message(&mut self, m: String) -> &mut Self {
         match self {
-            Self::Data { data, .. } => data.metadata.message = Some(m),
+            Self::Data { data, .. } => {
+                data.status.as_mut().map(|status| status.message = Some(m));
+            }
             _ => {}
         }
         self
@@ -186,7 +194,9 @@ impl<T: Serialize> HateoasResponse for Ricksponse<Response<T>> {
 
     fn status_code(&mut self, c: u32) -> &mut Self {
         match self {
-            Self::Data { data, .. } => data.metadata.code = Some(c),
+            Self::Data { data, .. } => {
+                data.status.as_mut().map(|status| status.code = Some(c));
+            }
             _ => {}
         }
         self
@@ -194,7 +204,11 @@ impl<T: Serialize> HateoasResponse for Ricksponse<Response<T>> {
 
     fn http_code(&mut self, h: u16) -> &mut Self {
         match self {
-            Self::Data { data, .. } => data.metadata.http_status_code = Some(h),
+            Self::Data { data, .. } => {
+                data.status
+                    .as_mut()
+                    .map(|status| status.http_status_code = Some(h));
+            }
             _ => {}
         }
         self
@@ -202,7 +216,9 @@ impl<T: Serialize> HateoasResponse for Ricksponse<Response<T>> {
 
     fn session(&mut self, u: Uuid) -> &mut Self {
         match self {
-            Self::Data { data, .. } => data.metadata.session = Some(u),
+            Self::Data { data, .. } => {
+                data.status.as_mut().map(|status| status.session = Some(u));
+            }
             _ => {}
         }
         self
@@ -233,7 +249,7 @@ impl<T> From<Ricksponse<T>> for HttpResponseBuilder {
                     None => StatusCode::OK,
                 };
                 HttpResponseBuilder::new(response_code)
-            },
+            }
             Ricksponse::Error { http_code, .. } => match http_code {
                 Some(code) => HttpResponseBuilder::new(
                     StatusCode::from_u16(code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
@@ -271,14 +287,14 @@ impl<T: Serialize> Responder for Ricksponse<T> {
                     .and_then(|content_type| {
                         data.encode(&content_type)
                             .map(|t| {
-                               HttpResponseBuilder::new(response_code)
+                                HttpResponseBuilder::new(response_code)
                                     .content_type(content_type)
                                     .body(t.to_vec())
                             })
                             .map_err(|_| HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR))
                     })
                     .unwrap_or_else(|e| e)
-            },
+            }
             Ricksponse::Error { http_code, .. } => match http_code {
                 Some(code) => HttpResponse::new(
                     StatusCode::from_u16(code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
@@ -286,7 +302,6 @@ impl<T: Serialize> Responder for Ricksponse<T> {
                 None => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
             },
         }
-
     }
 }
 
@@ -297,14 +312,14 @@ impl<T: Serialize> Responder for Ricksponse<T> {
 /// use serde_derive::Deserialize;
 /// use ricksponse::Ricksponse;
 ///
-/// #[derive(Deserialize)]
+/// #[derive(Deserialize, Debug)]
 /// struct Info {
-///     username: String,
+///     pub username: String,
 /// }
 ///
 /// /// deserialize `Info` from request's body
 /// async fn index(info: Ricksponse<Info>) -> String {
-/// format!("Welcome {}!", info.unwrap().username)
+/// format!("Welcome {:?}!", info)
 /// }
 ///
 /// fn main() {
