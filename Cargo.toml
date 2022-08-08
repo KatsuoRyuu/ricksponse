@@ -25,7 +25,7 @@ futures-core = "0.3.19"
 futures-util = "0.3.19"
 http = "0.2.6"
 mime = "0.3.16"
-railsgun = "1.0.3"
+railsgun = "2.0.0"
 serde = "1.0.135"
 serde_derive = "1.0.135"
 simple_serde = { version = "1.0.0-rc1", features = ["http"] }

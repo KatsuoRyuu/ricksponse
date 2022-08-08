@@ -1,5 +1,3 @@
-pub mod option;
-
 use crate::error::Error::*;
 use std::collections::HashSet;
 

@@ -16,11 +16,12 @@ pub type Result<T> = std::result::Result<T, error::Error>;
 const MAX_SIZE: usize = 41_943_040;
 
 pub use entity::ricksponse::payload_error::RicksponsePayloadError;
-pub use entity::ricksponse::ricksponse::{
-    DebuggableAny, HateoasResponse, Ricksponse, ToHateoasResponse,
+pub use entity::{
+    response,
+    ricksponse::ricksponse::{DebuggableAny, HateoasResponse, Ricksponse, ToHateoasResponse},
 };
+
 pub use error::Error;
 pub mod helpers_prelude {
     pub use crate::helpers::get_from_hash_set;
-    pub use crate::helpers::option::OptionsExtended;
 }

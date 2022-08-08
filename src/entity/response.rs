@@ -1,4 +1,4 @@
-use crate::helpers_prelude::OptionsExtended;
+use railsgun::OptionsExtended;
 use serde::{Serialize, Serializer};
 use std::collections::HashMap;
 
@@ -51,18 +51,18 @@ pub struct Response<T: Serialize> {
 }
 
 impl<T: Serialize> Response<T> {
-    fn status(&mut self) -> &mut Option<Status> {
+    fn status(&mut self) -> &mut Status {
         if self.status.is_none() {
             self.status = Some(Status::default());
         }
-        &mut self.status
+        self.status.get_or_insert_default()
     }
 
-    fn spec(&mut self) -> &mut Option<Content<T>> {
+    fn spec(&mut self) -> &mut Content<T> {
         if self.spec.is_none() {
             self.spec = Some(Content::default());
         }
-        &mut self.spec
+        self.spec.get_or_insert_default()
     }
 }
 
@@ -80,6 +80,15 @@ impl<T> Content<T> {
         self.content.is_some()
     }
 
+    /// Get the rel even if not set.
+    ///
+    /// ```
+    /// use ricksponse::response::Content;
+    ///
+    /// let mut content: Content<()> = Content::default();
+    /// let rel = content.rel();
+    ///
+    /// ```
     pub fn rel(&mut self) -> &mut RelLinkCollection {
         if self.rel.is_none() {
             self.rel = Some(RelLinkCollection::default());
@@ -98,7 +107,7 @@ impl<T: Serialize> Default for Content<T> {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize, PartialEq, Default)]
 pub struct RelLinkCollection(Vec<RelLink>);
 
 impl RelLinkCollection {
@@ -128,13 +137,7 @@ impl RelLinkCollection {
     }
 }
 
-impl Default for RelLinkCollection {
-    fn default() -> Self {
-        Self(Vec::new())
-    }
-}
-
-#[derive(Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct RelLink {
     href: String,
     rel: String,
@@ -147,7 +150,7 @@ impl RelLink {
     }
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub enum HttpMethod {
     Get,
     Head,
@@ -163,6 +166,7 @@ pub enum HttpMethod {
 #[cfg(test)]
 mod test {
     use super::Response;
+    use crate::response::{Content, RelLinkCollection};
     use simple_serde::SimpleEncoder;
 
     // #[test]
@@ -176,4 +180,11 @@ mod test {
     //     // println!("{}", response_ser);
     //     // assert_eq!()
     // }
+
+    #[test]
+    fn test_content_rel() {
+        let mut content: Content<()> = Content::default();
+        let rel = content.rel();
+        assert_eq!(&mut RelLinkCollection::default(), rel);
+    }
 }
