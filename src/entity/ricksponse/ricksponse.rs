@@ -2,7 +2,7 @@ use crate::entity::response::{Response, ResponseStatus};
 use crate::entity::ricksponse::ricksponse_extract_fut::RicksponseExtractFut;
 use crate::error::Error;
 use actix_http::body::BoxBody;
-use actix_web::{FromRequest, HttpRequest, HttpResponse, Responder};
+use actix_web::{FromRequest, HttpRequest, HttpResponse, HttpResponseBuilder, Responder};
 use http::StatusCode;
 use railsgun::Merge;
 use serde::de::DeserializeOwned;
@@ -13,7 +13,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::ops::{Deref, DerefMut};
 use uuid::Uuid;
 
-trait DebuggableAny: Debug + Any {}
+pub trait DebuggableAny: Debug + Any {}
 
 pub enum Ricksponse<T> {
     Data {
@@ -30,13 +30,13 @@ pub enum Ricksponse<T> {
 
 impl<T> Ricksponse<T> {
     pub fn http_code(&mut self, code: u16) {
-        match &mut self {
+        match self {
             Ricksponse::Data { http_code, .. } => *http_code = Some(code),
             Ricksponse::Error { http_code, .. } => *http_code = Some(code),
         }
     }
     pub fn message(&mut self, msg: String) {
-        match &mut self {
+        match self {
             Ricksponse::Data { message, .. } => *message = Some(msg),
             Ricksponse::Error { message, .. } => *message = Some(msg),
         }
@@ -77,8 +77,8 @@ impl<T, E: DebuggableAny> From<Result<T, E>> for Ricksponse<T> {
 
 impl<T: Serialize> From<Response<T>> for Ricksponse<Response<T>> {
     fn from(r: Response<T>) -> Self {
-        let http_code = r.status.http_status_code;
-        let message = r.status.message.clone();
+        let http_code = r.metadata.http_status_code;
+        let message = r.metadata.message.clone();
         Self::Data {
             data: r,
             http_code,
@@ -144,7 +144,7 @@ impl<T: Serialize> ToHateoasResponse<Ricksponse<Response<T>>> for Ricksponse<T> 
                 message,
             } => Ricksponse::new(Response {
                 content: Some(data),
-                status: ResponseStatus {
+                metadata: ResponseStatus {
                     message,
                     code: None,
                     http_status_code: http_code,
@@ -157,7 +157,7 @@ impl<T: Serialize> ToHateoasResponse<Ricksponse<Response<T>>> for Ricksponse<T> 
                 message,
             } => Ricksponse::from(Response {
                 content: None,
-                status: ResponseStatus {
+                metadata: ResponseStatus {
                     message: message.or_else(|| error.map(|e| format!("{:?}", e))),
                     code: None,
                     http_status_code: http_code,
@@ -169,40 +169,40 @@ impl<T: Serialize> ToHateoasResponse<Ricksponse<Response<T>>> for Ricksponse<T> 
 }
 
 pub trait HateoasResponse {
-    fn set_status_message(&mut self, m: String) -> &mut Self;
-    fn set_status_code(&mut self, m: u32) -> &mut Self;
-    fn set_status_http_code(&mut self, m: u16) -> &mut Self;
-    fn set_session(&mut self, m: uuid::Uuid) -> &mut Self;
+    fn message(&mut self, m: String) -> &mut Self;
+    fn status_code(&mut self, m: u32) -> &mut Self;
+    fn http_code(&mut self, m: u16) -> &mut Self;
+    fn session(&mut self, m: uuid::Uuid) -> &mut Self;
 }
 
 impl<T: Serialize> HateoasResponse for Ricksponse<Response<T>> {
-    fn set_status_message(&mut self, m: String) -> &mut Self {
-        match &mut self {
-            Self::Data { data, .. } => data.status.message = Some(m),
+    fn message(&mut self, m: String) -> &mut Self {
+        match self {
+            Self::Data { data, .. } => data.metadata.message = Some(m),
             _ => {}
         }
         self
     }
 
-    fn set_status_code(&mut self, c: u32) -> &mut Self {
-        match &mut self {
-            Self::Data { data, .. } => data.status.code = Some(c),
+    fn status_code(&mut self, c: u32) -> &mut Self {
+        match self {
+            Self::Data { data, .. } => data.metadata.code = Some(c),
             _ => {}
         }
         self
     }
 
-    fn set_status_http_code(&mut self, h: u16) -> &mut Self {
-        match &mut self {
-            Self::Data { data, .. } => data.status.http_status_code = Some(h),
+    fn http_code(&mut self, h: u16) -> &mut Self {
+        match self {
+            Self::Data { data, .. } => data.metadata.http_status_code = Some(h),
             _ => {}
         }
         self
     }
 
-    fn set_session(&mut self, u: Uuid) -> &mut Self {
-        match &mut self {
-            Self::Data { data, .. } => data.status.session = Some(u),
+    fn session(&mut self, u: Uuid) -> &mut Self {
+        match self {
+            Self::Data { data, .. } => data.metadata.session = Some(u),
             _ => {}
         }
         self
@@ -222,22 +222,23 @@ impl<T: Serialize> HateoasResponse for Ricksponse<Response<T>> {
 //     }
 // }
 
-impl<T> From<Ricksponse<T>> for Result<T, HttpResponse> {
+impl<T> From<Ricksponse<T>> for HttpResponseBuilder {
     fn from(r: Ricksponse<T>) -> Self {
         match r {
             Ricksponse::Data {
                 data, http_code, ..
-            } => match http_code {
-                Some(code) => Ok(HttpResponse::new(
-                    StatusCode::from_u16(code).unwrap_or(StatusCode::OK),
-                )),
-                None => Ok(HttpResponse::new(StatusCode::OK)),
+            } => {
+                let response_code = match http_code {
+                    Some(code) => StatusCode::from_u16(code).unwrap_or(StatusCode::OK),
+                    None => StatusCode::OK,
+                };
+                HttpResponseBuilder::new(response_code)
             },
             Ricksponse::Error { http_code, .. } => match http_code {
-                Some(code) => Err(HttpResponse::new(
+                Some(code) => HttpResponseBuilder::new(
                     StatusCode::from_u16(code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-                )),
-                None => Err(HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR)),
+                ),
+                None => HttpResponseBuilder::new(StatusCode::INTERNAL_SERVER_ERROR),
             },
         }
     }
@@ -255,33 +256,37 @@ impl<T: Serialize> Responder for Ricksponse<T> {
         if content_type_collection.is_empty() {
             content_type_collection = vec![ContentType::Json];
         }
-        let data_res = if let Some(e) = self.error {
-            if let Some(code) = self.http_code {
-                let status_code =
-                    StatusCode::from_u16(code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-                Err(HttpResponse::new(status_code))
-            } else {
-                Err(HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR))
-            }
-        } else if let Some(t) = self.inner {
-            Ok(t)
-        } else {
-            Err(HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR))
-        };
-        content_type_collection.reverse();
-        content_type_collection
-            .pop()
-            .ok_or_else(|| HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR))
-            .merge(data_res, |content_type, data| {
-                data.encode(&content_type)
-                    .map(|t| {
-                        HttpResponse::Ok()
-                            .content_type(content_type)
-                            .body(t.to_vec())
+        match self {
+            Ricksponse::Data {
+                data, http_code, ..
+            } => {
+                let response_code = match http_code {
+                    Some(code) => StatusCode::from_u16(code).unwrap_or(StatusCode::OK),
+                    None => StatusCode::OK,
+                };
+                content_type_collection.reverse();
+                content_type_collection
+                    .pop()
+                    .ok_or_else(|| HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR))
+                    .and_then(|content_type| {
+                        data.encode(&content_type)
+                            .map(|t| {
+                               HttpResponseBuilder::new(response_code)
+                                    .content_type(content_type)
+                                    .body(t.to_vec())
+                            })
+                            .map_err(|_| HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR))
                     })
-                    .map_err(|_| HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR))
-            })
-            .unwrap_or_else(|e| e)
+                    .unwrap_or_else(|e| e)
+            },
+            Ricksponse::Error { http_code, .. } => match http_code {
+                Some(code) => HttpResponse::new(
+                    StatusCode::from_u16(code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                ),
+                None => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+            },
+        }
+
     }
 }
 

@@ -17,6 +17,6 @@ const MAX_SIZE: usize = 41_943_040;
 
 pub use entity::ricksponse::payload_error::RicksponsePayloadError;
 pub use entity::ricksponse::ricksponse::{
-    HateoasResponse, Ricksponse, ToHateoasResponse, ToResponse,
+    HateoasResponse, Ricksponse, ToHateoasResponse, DebuggableAny,
 };
 pub use error::Error;

@@ -2,6 +2,7 @@ use actix_http::error::PayloadError;
 use actix_web::ResponseError;
 use derive_more::Display;
 use http::StatusCode;
+use crate::entity::ricksponse::ricksponse::DebuggableAny;
 
 #[derive(Debug, Display)]
 #[non_exhaustive]
@@ -42,6 +43,8 @@ pub enum RicksponsePayloadError {
     )]
     RickspnsePayloadError(String, Box<RicksponsePayloadError>),
 }
+
+impl DebuggableAny for RicksponsePayloadError{}
 
 impl From<PayloadError> for RicksponsePayloadError {
     fn from(err: PayloadError) -> Self {
