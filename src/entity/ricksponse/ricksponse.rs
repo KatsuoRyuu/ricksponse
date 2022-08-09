@@ -1,18 +1,15 @@
-use crate::entity::response::{HateoasResponse, Metadata, Status};
+use crate::entity::response::{HateoasResponse, Status};
 use crate::entity::ricksponse::ricksponse_extract_fut::RicksponseExtractFut;
 use crate::error::Error;
 use actix_http::body::BoxBody;
 use actix_web::{FromRequest, HttpRequest, HttpResponse, HttpResponseBuilder, Responder};
 use http::StatusCode;
-use railsgun::Merge;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use simple_serde::{ContentType, SimpleEncoder};
 use std::any::Any;
 use std::fmt::{Debug, Display, Formatter};
 use std::hint;
-use std::ops::{Deref, DerefMut};
-use uuid::Uuid;
 
 pub trait DebuggableAny: Debug + Any {}
 
