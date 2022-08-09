@@ -1,4 +1,4 @@
-use crate::entity::response::{Metadata, Response, Status};
+use crate::entity::response::{HateoasResponse, Metadata, Status};
 use crate::entity::ricksponse::ricksponse_extract_fut::RicksponseExtractFut;
 use crate::error::Error;
 use actix_http::body::BoxBody;
@@ -10,6 +10,7 @@ use serde::Serialize;
 use simple_serde::{ContentType, SimpleEncoder};
 use std::any::Any;
 use std::fmt::{Debug, Display, Formatter};
+use std::hint;
 use std::ops::{Deref, DerefMut};
 use uuid::Uuid;
 
@@ -39,6 +40,27 @@ impl<T> Ricksponse<T> {
         match self {
             Ricksponse::Data { message, .. } => *message = Some(msg),
             Ricksponse::Error { message, .. } => *message = Some(msg),
+        }
+    }
+
+    pub fn get_or_with_data(&mut self, data: T) -> &mut T {
+        match self {
+            Ricksponse::Error {
+                http_code, message, ..
+            } => {
+                *self = Ricksponse::Data {
+                    data,
+                    http_code: *http_code,
+                    message: message.clone(),
+                }
+            }
+            _ => {}
+        }
+        // SAFETY: a `None` variant for `self` would have been replaced by a `Some`
+        // variant in the code above.
+        match self {
+            Ricksponse::Data { data, .. } => data,
+            Ricksponse::Error { .. } => unsafe { hint::unreachable_unchecked() },
         }
     }
 }
@@ -75,8 +97,8 @@ impl<T, E: DebuggableAny> From<Result<T, E>> for Ricksponse<T> {
     }
 }
 
-impl<T: Serialize> From<Response<T>> for Ricksponse<Response<T>> {
-    fn from(r: Response<T>) -> Self {
+impl<T: Serialize> From<HateoasResponse<T>> for Ricksponse<HateoasResponse<T>> {
+    fn from(r: HateoasResponse<T>) -> Self {
         let http_code = r.status.as_ref().and_then(|status| status.http_status_code);
         let message = r.status.as_ref().and_then(|status| status.message.clone());
         Self::Data {
@@ -135,17 +157,17 @@ pub trait ToHateoasResponse<T> {
     fn to_hateoas_response(self) -> T;
 }
 
-impl<T: Serialize> ToHateoasResponse<Ricksponse<Response<T>>> for Ricksponse<T> {
-    fn to_hateoas_response(self) -> Ricksponse<Response<T>> {
+impl<T: Serialize> ToHateoasResponse<Ricksponse<HateoasResponse<T>>> for Ricksponse<T> {
+    fn to_hateoas_response(self) -> Ricksponse<HateoasResponse<T>> {
         match self {
             Ricksponse::Data {
                 data,
                 http_code,
                 message,
-            } => Ricksponse::new(Response {
+            } => Ricksponse::new(HateoasResponse {
                 api_version: "Unknown.invalid/0.0.0".to_string(),
                 kind: "".to_string(),
-                metadata: Metadata::default(),
+                metadata: None,
                 spec: None,
                 status: Some(Status {
                     message,
@@ -158,10 +180,10 @@ impl<T: Serialize> ToHateoasResponse<Ricksponse<Response<T>>> for Ricksponse<T> 
                 error,
                 http_code,
                 message,
-            } => Ricksponse::from(Response {
+            } => Ricksponse::from(HateoasResponse {
                 api_version: "Unknown.invalid/0.0.0".to_string(),
                 kind: "".to_string(),
-                metadata: Metadata::default(),
+                metadata: None,
                 spec: None,
                 status: Some(Status {
                     message,
@@ -174,54 +196,16 @@ impl<T: Serialize> ToHateoasResponse<Ricksponse<Response<T>>> for Ricksponse<T> 
     }
 }
 
-pub trait HateoasResponse {
-    fn message(&mut self, m: String) -> &mut Self;
-    fn status_code(&mut self, m: u32) -> &mut Self;
-    fn http_code(&mut self, m: u16) -> &mut Self;
-    fn session(&mut self, m: uuid::Uuid) -> &mut Self;
+pub trait AsHateoasResponse<T>
+where
+    T: Serialize,
+{
+    fn as_response(&mut self) -> &mut HateoasResponse<T>;
 }
 
-impl<T: Serialize> HateoasResponse for Ricksponse<Response<T>> {
-    fn message(&mut self, m: String) -> &mut Self {
-        match self {
-            Self::Data { data, .. } => {
-                data.status.as_mut().map(|status| status.message = Some(m));
-            }
-            _ => {}
-        }
-        self
-    }
-
-    fn status_code(&mut self, c: u32) -> &mut Self {
-        match self {
-            Self::Data { data, .. } => {
-                data.status.as_mut().map(|status| status.code = Some(c));
-            }
-            _ => {}
-        }
-        self
-    }
-
-    fn http_code(&mut self, h: u16) -> &mut Self {
-        match self {
-            Self::Data { data, .. } => {
-                data.status
-                    .as_mut()
-                    .map(|status| status.http_status_code = Some(h));
-            }
-            _ => {}
-        }
-        self
-    }
-
-    fn session(&mut self, u: Uuid) -> &mut Self {
-        match self {
-            Self::Data { data, .. } => {
-                data.status.as_mut().map(|status| status.session = Some(u));
-            }
-            _ => {}
-        }
-        self
+impl<T: Serialize> AsHateoasResponse<T> for Ricksponse<HateoasResponse<T>> {
+    fn as_response(&mut self) -> &mut HateoasResponse<T> {
+        self.get_or_with_data(HateoasResponse::default())
     }
 }
 

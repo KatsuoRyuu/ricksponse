@@ -1,6 +1,7 @@
 use crate::entity::ricksponse::ricksponse::Ricksponse;
 use crate::entity::ricksponse::ricksponse_body::RicksponseBody;
 use crate::error::Error;
+use crate::RicksponsePayloadError;
 use actix_http::Payload;
 use actix_web::HttpRequest;
 use serde::de::DeserializeOwned;
@@ -9,7 +10,6 @@ use std::future::Future;
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use crate::RicksponsePayloadError;
 
 pub struct RicksponseExtractFut<T> {
     pub(crate) _req: Option<HttpRequest>,
@@ -37,8 +37,12 @@ impl<T: DeserializeOwned> Future for RicksponseExtractFut<T> {
             }
         };
         Poll::Ready(match res {
-            Err(err) => Ok( Ricksponse::from(Err(err.into()) as Result<T, RicksponsePayloadError>)),
-            Ok(data) => Ok(Ricksponse::from(Ok(data) as Result<T, RicksponsePayloadError>)),
+            Err(err) => Ok(Ricksponse::from(
+                Err(err.into()) as Result<T, RicksponsePayloadError>
+            )),
+            Ok(data) => Ok(Ricksponse::from(
+                Ok(data) as Result<T, RicksponsePayloadError>
+            )),
         })
     }
 }
