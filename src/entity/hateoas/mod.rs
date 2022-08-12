@@ -1,12 +1,31 @@
+use std::ops::{Deref, DerefMut};
+use actix_http::body::BoxBody;
+use actix_web::{HttpRequest, HttpResponse, HttpResponseBuilder, Responder};
 use crate::Ricksponse;
 use hateoas::{HateoasResource, HateoasResponse};
+use http::StatusCode;
 use serde::Serialize;
+use simple_serde::ContentType;
 
 pub struct RickHateOas<T>
 where
     T: Serialize + HateoasResource,
 {
     inner: HateoasResponse<T>,
+}
+
+impl<T> Deref for RickHateOas<T> {
+    type Target = HateoasResponse<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl<T> DerefMut for RickHateOas<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
 }
 
 pub struct Response {}
@@ -222,4 +241,60 @@ auto_impl_status_codes! {
     /// 511 Network Authentication Required
     /// [[RFC6585](https://tools.ietf.org/html/rfc6585)]
     (511, NETWORK_AUTHENTICATION_REQUIRED, "Network Authentication Required");
+}
+
+impl<T: Serialize + HateoasResource> From<RickHateOas<T>> for Ricksponse<T> {
+    fn from(mut r: RickHateOas<T>) -> Self {
+        Ricksponse::Data{
+            data: r,
+            http_code: r.status().http_status_code().clone(),
+            message: r.status().message().clone(),
+        }
+    }
+}
+
+impl<T: Serialize + HateoasResource> Responder for RickHateOas<T> {
+    type Body = BoxBody;
+
+    fn respond_to(self, req: &HttpRequest) -> HttpResponse<Self::Body> {
+        let mut content_type_collection = req
+            .headers()
+            .get_all("Accept")
+            .filter_map(|h| ContentType::try_from(h).ok())
+            .collect::<Vec<ContentType>>();
+        if content_type_collection.is_empty() {
+            content_type_collection = vec![ContentType::Json];
+        }
+
+        match self {
+            Ricksponse::Data {
+                data, http_code, ..
+            } => {
+                let response_code = match http_code {
+                    Some(code) => StatusCode::from_u16(code).unwrap_or(StatusCode::OK),
+                    None => StatusCode::OK,
+                };
+                content_type_collection.reverse();
+                content_type_collection
+                    .pop()
+                    .ok_or_else(|| HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR))
+                    .and_then(|content_type| {
+                        data.encode(&content_type)
+                            .map(|t| {
+                                HttpResponseBuilder::new(response_code)
+                                    .content_type(content_type)
+                                    .body(t.to_vec())
+                            })
+                            .map_err(|_| HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR))
+                    })
+                    .unwrap_or_else(|e| e)
+            }
+            Ricksponse::Error { http_code, .. } => match http_code {
+                Some(code) => HttpResponse::new(
+                    StatusCode::from_u16(code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                ),
+                None => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+            },
+        }
+    }
 }
