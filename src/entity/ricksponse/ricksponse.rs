@@ -303,7 +303,7 @@ macro_rules! status_codes {
                 Ricksponse::new_with_http_and_message(t, $num, $phrase)
             }
         )+
-}
+        }
         impl<T> Response<T> {
         $(
             $(#[$docs])*
