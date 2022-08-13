@@ -89,6 +89,10 @@ impl<T> Ricksponse<T> {
     }
 }
 
+pub trait RicksponseResource {
+    const MAX_PAYLOAD_SIZE: Option<usize>;
+}
+
 impl<T, E: DebuggableAny> From<Result<T, E>> for Ricksponse<T> {
     fn from(r: Result<T, E>) -> Self {
         let message = if let Err(e) = &r {
