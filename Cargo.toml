@@ -23,7 +23,7 @@ derive_more = "0.99.17"
 futures = "0.3.19"
 futures-core = "0.3.19"
 futures-util = "0.3.19"
-hateoas = {version = "0.1.1", optional = true}
+hateoas = {version = "0.1.4", optional = true}
 http = "0.2.6"
 mime = "0.3.16"
 railsgun = "2.0.0"

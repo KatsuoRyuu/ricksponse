@@ -1,4 +1,5 @@
-use crate::entity::ricksponse::ricksponse_extract_fut::RicksponseExtractFut;
+use crate::entity::payload_control::PayloadControl;
+use crate::entity::payload_future::PayloadFuture;
 use crate::error::Error;
 use actix_http::body::BoxBody;
 use actix_web::{FromRequest, HttpRequest, HttpResponse, HttpResponseBuilder, Responder};
@@ -42,17 +43,15 @@ impl<T> Ricksponse<T> {
     }
 
     pub fn get_or_with_data(&mut self, data: T) -> &mut T {
-        match self {
-            Ricksponse::Error {
-                http_code, message, ..
-            } => {
-                *self = Ricksponse::Data {
-                    data,
-                    http_code: *http_code,
-                    message: message.clone(),
-                }
+        if let Ricksponse::Error {
+            http_code, message, ..
+        } = self
+        {
+            *self = Ricksponse::Data {
+                data,
+                http_code: *http_code,
+                message: message.clone(),
             }
-            _ => {}
         }
         // SAFETY: a `None` variant for `self` would have been replaced by a `Some`
         // variant in the code above.
@@ -61,9 +60,7 @@ impl<T> Ricksponse<T> {
             Ricksponse::Error { .. } => unsafe { hint::unreachable_unchecked() },
         }
     }
-}
 
-impl<T> Ricksponse<T> {
     pub fn new(t: T) -> Self {
         Self::Data {
             data: t,
@@ -87,10 +84,6 @@ impl<T> Ricksponse<T> {
             message: Some(message.to_string()),
         }
     }
-}
-
-pub trait RicksponseResource {
-    const MAX_PAYLOAD_SIZE: Option<usize>;
 }
 
 impl<T, E: DebuggableAny> From<Result<T, E>> for Ricksponse<T> {
@@ -280,10 +273,16 @@ impl<T: Serialize> Responder for Ricksponse<T> {
 /// use actix_web::{web, App};
 /// use serde_derive::Deserialize;
 /// use ricksponse::Ricksponse;
+/// use ricksponse::PayloadControl;
 ///
 /// #[derive(Deserialize, Debug)]
 /// struct Info {
 ///     pub username: String,
+/// }
+///
+/// impl PayloadControl for Info {
+///     const MAX_PAYLOAD_SIZE: Option<usize> = None;
+///     const BUFFER_CAPACITY: Option<usize> = None;
 /// }
 ///
 /// /// deserialize `Info` from request's body
@@ -301,14 +300,14 @@ impl<T: Serialize> Responder for Ricksponse<T> {
 ///
 impl<T> FromRequest for Ricksponse<T>
 where
-    T: DeserializeOwned,
+    T: DeserializeOwned + PayloadControl,
 {
     type Error = Error;
-    type Future = RicksponseExtractFut<T>;
+    type Future = PayloadFuture<T, T, Ricksponse<T>>;
 
     #[inline]
     fn from_request(req: &HttpRequest, payload: &mut actix_http::Payload) -> Self::Future {
-        RicksponseExtractFut::new(req.clone(), payload)
+        PayloadFuture::new(req.clone(), payload)
     }
 }
 

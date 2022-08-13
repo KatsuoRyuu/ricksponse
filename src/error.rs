@@ -13,7 +13,7 @@ pub enum Error {
     PayloadTooLarge(String),
     FailedToMapHeaderToStr(ToStrError),
     SerializationDeserializationError(simple_serde::Error),
-    PayloadError(entity::ricksponse::payload_error::RicksponsePayloadError),
+    PayloadError(entity::payload_error::PayloadError),
     FailedToGetContentTypeFromHeader,
     Infallible,
     NoPayloadSizeDefinitionInHeader,
@@ -23,8 +23,8 @@ pub enum Error {
 unsafe impl Send for Error {}
 unsafe impl Sync for Error {}
 
-impl From<entity::ricksponse::payload_error::RicksponsePayloadError> for Error {
-    fn from(e: entity::ricksponse::payload_error::RicksponsePayloadError) -> Self {
+impl From<entity::payload_error::PayloadError> for Error {
+    fn from(e: entity::payload_error::PayloadError) -> Self {
         Self::PayloadError(e)
     }
 }

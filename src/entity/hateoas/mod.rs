@@ -1,10 +1,14 @@
+use crate::entity::payload_control::PayloadControl;
+use crate::entity::payload_error::PayloadError;
+use crate::entity::payload_future::PayloadFuture;
+use crate::error::Error;
 use crate::Ricksponse;
 use actix_http::body::BoxBody;
-use actix_web::{HttpRequest, HttpResponse, HttpResponseBuilder, Responder};
-use hateoas_response::{Hateoas, HateoasResource};
+use actix_web::{FromRequest, HttpRequest, HttpResponse, HttpResponseBuilder, Responder};
+use hateoas_response::{Hateoas, HateoasResource, Status};
 use http::StatusCode;
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use simple_serde::{ContentType, SimpleEncoder};
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
@@ -324,5 +328,33 @@ impl<T: Serialize + HateoasResource + DeserializeOwned + Default> Responder for 
                 None => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
             },
         }
+    }
+}
+
+impl<T: Serialize + HateoasResource + DeserializeOwned + Default>
+    From<Result<Hateoas<T>, PayloadError>> for RickHateOas<T>
+{
+    fn from(res: Result<Hateoas<T>, PayloadError>) -> Self {
+        match res {
+            Ok(inner) => RickHateOas { inner },
+            Err(e) => {
+                let mut status = Status::INTERNAL_SERVER_ERROR();
+                *status.message_mut() = Some(format!("{:?}", e));
+                let inner: Hateoas<T> = Hateoas::new(None, None, Some(status));
+                RickHateOas { inner }
+            }
+        }
+    }
+}
+impl<T> FromRequest for RickHateOas<T>
+where
+    T: Serialize + DeserializeOwned + HateoasResource + PayloadControl + Default,
+{
+    type Error = Error;
+    type Future = PayloadFuture<T, Hateoas<T>, RickHateOas<T>>;
+
+    #[inline]
+    fn from_request(req: &HttpRequest, payload: &mut actix_http::Payload) -> Self::Future {
+        PayloadFuture::new(req.clone(), payload)
     }
 }
