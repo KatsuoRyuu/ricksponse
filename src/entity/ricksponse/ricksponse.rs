@@ -1,6 +1,5 @@
 use crate::entity::ricksponse::ricksponse_extract_fut::RicksponseExtractFut;
 use crate::error::Error;
-use crate::hateoas::{HateoasResponse, Status};
 use actix_http::body::BoxBody;
 use actix_web::{FromRequest, HttpRequest, HttpResponse, HttpResponseBuilder, Responder};
 use http::StatusCode;
@@ -14,6 +13,7 @@ use std::marker::PhantomData;
 
 pub trait DebuggableAny: Debug + Any {}
 
+#[derive()]
 pub enum Ricksponse<T> {
     Data {
         data: T,
@@ -151,7 +151,30 @@ where
     T: Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Json: {:?}", self)
+        match self {
+            Ricksponse::Data {
+                data,
+                http_code,
+                message,
+            } => {
+                write!(
+                    f,
+                    "Data: {:#?}, http_code: {:?}, message: {:?}",
+                    data, http_code, message,
+                )
+            }
+            Ricksponse::Error {
+                error,
+                http_code,
+                message,
+            } => {
+                write!(
+                    f,
+                    "Error: {:#?}, http_code: {:?}, message: {:?}",
+                    error, http_code, message,
+                )
+            }
+        }
     }
 }
 
@@ -289,7 +312,7 @@ pub struct Response<T> {
     phantom: PhantomData<T>,
 }
 
-macro_rules! status_codes {
+macro_rules! auto_impl_response {
     (
         $(
             $(#[$docs:meta])*
@@ -299,15 +322,18 @@ macro_rules! status_codes {
         impl<T> Ricksponse<T> {
         $(
             $(#[$docs])*
-            pub const fn $konst(t: T) -> Ricksponse<T> {
+            #[allow(non_snake_case)]
+            pub fn $konst(t: T) -> Ricksponse<T> {
                 Ricksponse::new_with_http_and_message(t, $num, $phrase)
             }
         )+
         }
+
         impl<T> Response<T> {
         $(
             $(#[$docs])*
-            pub const fn $konst(t: T) -> Ricksponse<T> {
+            #[allow(non_snake_case)]
+            pub fn $konst(t: T) -> Ricksponse<T> {
                 Ricksponse::new_with_http_and_message(t, $num, $phrase)
             }
         )+
@@ -324,7 +350,7 @@ macro_rules! status_codes {
     }
 }
 
-status_codes! {
+auto_impl_response! {
     /// 100 Continue
     /// [[RFC7231, Section 6.2.1](https://tools.ietf.org/html/rfc7231#section-6.2.1)]
     (100, CONTINUE, "Continue");
