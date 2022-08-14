@@ -1,11 +1,12 @@
-use actix_http::error::PayloadError;
+use crate::entity::ricksponse::ricksponse::DebuggableAny;
+use actix_http::error;
 use actix_web::ResponseError;
 use derive_more::Display;
 use http::StatusCode;
 
 #[derive(Debug, Display)]
 #[non_exhaustive]
-pub enum RicksponsePayloadError {
+pub enum PayloadError {
     /// Payload size is bigger than allowed & content length header set. (default: 2MB)
     #[display(
         fmt = "Ricksponse payload ({} bytes) is larger than allowed (limit: {} bytes).",
@@ -32,7 +33,7 @@ pub enum RicksponsePayloadError {
 
     /// Payload error
     #[display(fmt = "Error that occur during reading payload: {}", _0)]
-    Payload(PayloadError),
+    Payload(error::PayloadError),
 
     /// Payload error
     #[display(
@@ -40,16 +41,18 @@ pub enum RicksponsePayloadError {
         _0,
         _1
     )]
-    RickspnsePayloadError(String, Box<RicksponsePayloadError>),
+    PayloadError(String, Box<PayloadError>),
 }
 
-impl From<PayloadError> for RicksponsePayloadError {
-    fn from(err: PayloadError) -> Self {
+impl DebuggableAny for PayloadError {}
+
+impl From<error::PayloadError> for PayloadError {
+    fn from(err: error::PayloadError) -> Self {
         Self::Payload(err)
     }
 }
 
-impl ResponseError for RicksponsePayloadError {
+impl ResponseError for PayloadError {
     fn status_code(&self) -> StatusCode {
         match self {
             Self::OverflowKnownLength {
@@ -59,7 +62,7 @@ impl ResponseError for RicksponsePayloadError {
             Self::Overflow { limit: _ } => StatusCode::PAYLOAD_TOO_LARGE,
             Self::Serialize(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Payload(err) => err.status_code(),
-            Self::RickspnsePayloadError(_, _) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::PayloadError(_, _) => StatusCode::INTERNAL_SERVER_ERROR,
             _ => StatusCode::BAD_REQUEST,
         }
     }

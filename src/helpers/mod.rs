@@ -1,7 +1,7 @@
 use crate::error::Error::*;
 use std::collections::HashSet;
 
-fn get_from_hash_set(hash: HashSet<&str>) -> crate::Result<simple_serde::ContentType> {
+pub fn get_from_hash_set(hash: HashSet<&str>) -> crate::Result<simple_serde::ContentType> {
     for i in hash {
         if let Ok(content_type) = simple_serde::ContentType::try_from(i) {
             return Ok(content_type);
@@ -12,7 +12,7 @@ fn get_from_hash_set(hash: HashSet<&str>) -> crate::Result<simple_serde::Content
 
 #[cfg(test)]
 mod test {
-    use crate::helper::get_from_hash_set;
+    use crate::helpers_prelude::get_from_hash_set;
     use std::collections::HashSet;
 
     #[test]
