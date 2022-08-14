@@ -53,6 +53,22 @@ macro_rules! auto_impl_hateoas_response_wrapper {
     ) => {
         impl<T: Serialize + HateoasResource + Default + DeserializeOwned> RickHateOas<T> {
             $(
+            $(#[$docs])*
+            #[doc = " ```\n" ]
+            #[doc = " use ricksponse::hateoas::{RickHateOas, Content, Hateoas, Status};\n" ]
+            #[doc = " use std::ops::Deref;\n" ]
+            #[doc = " \n" ]
+            #[doc = concat!(" let rickhateoas: RickHateOas<String> = RickHateOas::", stringify!($konst), "(\"test\".to_string());\n") ]
+            #[doc = " \n" ]
+            #[doc = " assert_eq!(\n" ]
+            #[doc = "     rickhateoas.deref(),\n" ]
+            #[doc = "     &Hateoas::new(\n" ]
+            #[doc = concat!("         Some(Content::new(\"test\".to_string())),\n") ]
+            #[doc = "         None,\n" ]
+            #[doc = concat!("         Some(Status::", stringify!($konst), "())\n") ]
+            #[doc = "     )\n" ]
+            #[doc = " );\n" ]
+            #[doc = " ``` "]
             #[allow(non_snake_case)]
             pub fn $konst(t: T) -> RickHateOas<T> {
                 RickHateOas {
@@ -64,6 +80,22 @@ macro_rules! auto_impl_hateoas_response_wrapper {
 
         impl<T: Serialize + HateoasResource + Default + DeserializeOwned> Response<T> {
             $(
+            $(#[$docs])*
+            #[doc = " ```\n" ]
+            #[doc = " use ricksponse::hateoas::{Response, RickHateOas, Content, Hateoas, Status};\n" ]
+            #[doc = " use std::ops::Deref;\n" ]
+            #[doc = " \n" ]
+            #[doc = concat!(" let rickhateoas: RickHateOas<String> = Response::", stringify!($konst), "(\"test\".to_string());\n") ]
+            #[doc = " \n" ]
+            #[doc = " assert_eq!(\n" ]
+            #[doc = "     rickhateoas.deref(),\n" ]
+            #[doc = "     &Hateoas::new(\n" ]
+            #[doc = concat!("         Some(Content::new(\"test\".to_string())),\n") ]
+            #[doc = "         None,\n" ]
+            #[doc = concat!("         Some(Status::", stringify!($konst), "())\n") ]
+            #[doc = "     )\n" ]
+            #[doc = " );\n" ]
+            #[doc = " ``` "]
             #[allow(non_snake_case)]
             pub fn $konst(t: T) -> RickHateOas<T> {
                 RickHateOas {
@@ -85,7 +117,6 @@ auto_impl_hateoas_response_wrapper! {
     /// 102 Processing
     /// [[RFC2518](https://tools.ietf.org/html/rfc2518)]
     (PROCESSING);
-
     /// 200 OK
     /// [[RFC7231, Section 6.3.1](https://tools.ietf.org/html/rfc7231#section-6.3.1)]
     (OK);
@@ -113,11 +144,9 @@ auto_impl_hateoas_response_wrapper! {
     /// 208 Already Reported
     /// [[RFC5842](https://tools.ietf.org/html/rfc5842)]
     (ALREADY_REPORTED);
-
     /// 226 IM Used
     /// [[RFC3229](https://tools.ietf.org/html/rfc3229)]
     (IM_USED);
-
     /// 300 Multiple Choices
     /// [[RFC7231, Section 6.4.1](https://tools.ietf.org/html/rfc7231#section-6.4.1)]
     (MULTIPLE_CHOICES);
@@ -142,7 +171,6 @@ auto_impl_hateoas_response_wrapper! {
     /// 308 Permanent Redirect
     /// [[RFC7238](https://tools.ietf.org/html/rfc7238)]
     (PERMANENT_REDIRECT);
-
     /// 400 Bad Request
     /// [[RFC7231, Section 6.5.1](https://tools.ietf.org/html/rfc7231#section-6.5.1)]
     (BAD_REQUEST);
@@ -200,7 +228,6 @@ auto_impl_hateoas_response_wrapper! {
     /// 418 I'm a teapot
     /// [curiously not registered by IANA but [RFC2324](https://tools.ietf.org/html/rfc2324)]
     (IM_A_TEAPOT);
-
     /// 421 Misdirected Request
     /// [RFC7540, Section 9.1.2](http://tools.ietf.org/html/rfc7540#section-9.1.2)
     (MISDIRECTED_REQUEST);
@@ -213,26 +240,21 @@ auto_impl_hateoas_response_wrapper! {
     /// 424 Failed Dependency
     /// [[RFC4918](https://tools.ietf.org/html/rfc4918)]
     (FAILED_DEPENDENCY);
-
     /// 426 Upgrade Required
     /// [[RFC7231, Section 6.5.15](https://tools.ietf.org/html/rfc7231#section-6.5.15)]
     (UPGRADE_REQUIRED);
-
     /// 428 Precondition Required
     /// [[RFC6585](https://tools.ietf.org/html/rfc6585)]
     (PRECONDITION_REQUIRED);
     /// 429 Too Many Requests
     /// [[RFC6585](https://tools.ietf.org/html/rfc6585)]
     (TOO_MANY_REQUESTS);
-
     /// 431 Request Header Fields Too Large
     /// [[RFC6585](https://tools.ietf.org/html/rfc6585)]
     (REQUEST_HEADER_FIELDS_TOO_LARGE);
-
     /// 451 Unavailable For Legal Reasons
     /// [[RFC7725](http://tools.ietf.org/html/rfc7725)]
     (UNAVAILABLE_FOR_LEGAL_REASONS);
-
     /// 500 Internal Server Error
     /// [[RFC7231, Section 6.6.1](https://tools.ietf.org/html/rfc7231#section-6.6.1)]
     (INTERNAL_SERVER_ERROR);
@@ -260,7 +282,6 @@ auto_impl_hateoas_response_wrapper! {
     /// 508 Loop Detected
     /// [[RFC5842](https://tools.ietf.org/html/rfc5842)]
     (LOOP_DETECTED);
-
     /// 510 Not Extended
     /// [[RFC2774](https://tools.ietf.org/html/rfc2774)]
     (NOT_EXTENDED);
@@ -356,5 +377,110 @@ where
     #[inline]
     fn from_request(req: &HttpRequest, payload: &mut actix_http::Payload) -> Self::Future {
         PayloadFuture::new(req.clone(), payload)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::hateoas::RickHateOas;
+    use actix_web::{http::header, test, web, App};
+    use hateoas_response::{Hateoas, HateoasResource};
+    use serde_json;
+    use std::ops::Deref;
+
+    #[derive(Serialize, Deserialize, Debug, PartialEq)]
+    pub struct RubberBullet {
+        pub name: String,
+        pub title: String,
+        pub chapter: String,
+    }
+
+    impl Default for RubberBullet {
+        fn default() -> Self {
+            RubberBullet {
+                name: "Rubber Bullet".to_string(),
+                title: "The Bullet".to_string(),
+                chapter: "A Rubber Bullet Hurts".to_string(),
+            }
+        }
+    }
+
+    impl HateoasResource for RubberBullet {
+        const KIND: &'static str = "";
+        const VERSION: &'static str = "";
+        const GROUP: &'static str = "";
+        const URL_PATH_SEGMENT: &'static str = "";
+    }
+
+    const RICKSPONSE_1: &str = r##"
+
+
+    "##;
+
+    #[actix_web::test]
+    async fn test_hateoas_string() {
+        let app = test::init_service(
+            App::new().service(
+                web::resource("/index.html")
+                    .route(web::post().to(|| async { RickHateOas::OK("welcome!".to_string()) })),
+            ),
+        )
+        .await;
+
+        let req = test::TestRequest::post()
+            .uri("/index.html")
+            .insert_header(header::ContentType::json())
+            .to_request();
+
+        let res = test::call_service(&app, req).await;
+        let result = test::read_body(res).await;
+
+        let raw_str = std::str::from_utf8(&*result).unwrap();
+        println!("{}", raw_str);
+        let content = serde_json::from_str::<Hateoas<String>>(raw_str).unwrap();
+        println!("{:#?}", content);
+        assert_eq!(content, Hateoas::OK("welcome!".to_string()));
+    }
+
+    #[actix_web::test]
+    async fn test_hateoas_rubber_bullet() {
+        let response = RickHateOas::OK(RubberBullet::default());
+
+        let app = test::init_service(
+            App::new().service(
+                web::resource("/index.html")
+                    .route(web::post().to(|| async { RickHateOas::OK(RubberBullet::default()) })),
+            ),
+        )
+        .await;
+
+        let req = test::TestRequest::post()
+            .uri("/index.html")
+            .insert_header(header::ContentType::json())
+            .to_request();
+
+        let res = test::call_service(&app, req).await;
+        let result = test::read_body(res).await;
+
+        let raw_str = std::str::from_utf8(&*result).unwrap();
+        println!("{}", raw_str);
+        let content = serde_json::from_str::<Hateoas<RubberBullet>>(raw_str).unwrap();
+        println!("{:#?}", content);
+        assert_eq!(&content, response.deref());
+    }
+
+    #[actix_web::test]
+    async fn test_for_automated_impl_hateoas() {
+        use crate::hateoas::{Content, Hateoas, Status};
+        let rickhateoas: RickHateOas<String> = RickHateOas::OK("test".to_string());
+
+        assert_eq!(
+            rickhateoas.deref(),
+            &Hateoas::new(
+                Some(Content::new("test".to_string())),
+                None,
+                Some(Status::OK())
+            )
+        );
     }
 }

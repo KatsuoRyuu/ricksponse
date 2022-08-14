@@ -325,6 +325,16 @@ macro_rules! auto_impl_response {
         impl<T> Ricksponse<T> {
         $(
             $(#[$docs])*
+            #[doc = " ``` \n"]
+            #[doc = " use ricksponse::{Ricksponse};\n"]
+            #[doc = " \n"]
+            #[doc = concat!(" let mut response: Ricksponse<String> = Ricksponse::", stringify!($konst), "(\"test\".to_string());\n") ]
+            #[doc = " \n"]
+            #[doc = " assert_eq!(\n"]
+            #[doc = "     response.get_or_with_data(\"\".to_string()),\n"]
+            #[doc = "     &\"test\".to_string()\n"]
+            #[doc = " );\n"]
+            #[doc = " ``` "]
             #[allow(non_snake_case)]
             pub fn $konst(t: T) -> Ricksponse<T> {
                 Ricksponse::new_with_http_and_message(t, $num, $phrase)
@@ -335,6 +345,16 @@ macro_rules! auto_impl_response {
         impl<T> Response<T> {
         $(
             $(#[$docs])*
+            #[doc = " ``` \n"]
+            #[doc = " use ricksponse::{Ricksponse, Response};\n"]
+            #[doc = " \n"]
+            #[doc = concat!(" let mut response: Ricksponse<String> = Response::", stringify!($konst), "(\"test\".to_string());\n") ]
+            #[doc = " \n"]
+            #[doc = " assert_eq!(\n"]
+            #[doc = "     response.get_or_with_data(\"\".to_string()),\n"]
+            #[doc = "     &\"test\".to_string()\n"]
+            #[doc = " );\n"]
+            #[doc = " ``` "]
             #[allow(non_snake_case)]
             pub fn $konst(t: T) -> Ricksponse<T> {
                 Ricksponse::new_with_http_and_message(t, $num, $phrase)
@@ -556,5 +576,17 @@ mod test {
     fn test_status_codes() {
         let ricksponse_continue = Ricksponse::CONTINUE(());
         let response_continue = Response::CONTINUE(());
+    }
+
+    #[actix_web::test]
+    async fn test_for_automated_impl_ricksponse() {
+        use crate::Ricksponse;
+
+        let mut response: Ricksponse<String> = Ricksponse::OK("test".to_string());
+
+        assert_eq!(
+            response.get_or_with_data("".to_string()),
+            &"test".to_string()
+        );
     }
 }
