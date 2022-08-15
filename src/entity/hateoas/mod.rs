@@ -5,43 +5,56 @@ use crate::error::Error;
 use crate::Ricksponse;
 use actix_http::body::BoxBody;
 use actix_web::{FromRequest, HttpRequest, HttpResponse, HttpResponseBuilder, Responder};
-use hateoas_response::{Hateoas, HateoasResource, Status};
+use hateoas_response::{HateoasResource, Status};
 use http::StatusCode;
-use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::de::{DeserializeOwned, Visitor};
+use serde::{Deserialize, Deserializer, Serialize};
 use simple_serde::{ContentType, SimpleEncoder};
+use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
-pub struct RickHateOas<T>
+#[derive(Serialize, Debug, PartialEq)]
+pub struct Hateoas<T>
 where
     T: Serialize + HateoasResource + DeserializeOwned,
 {
-    inner: Hateoas<T>,
+    inner: hateoas_response::Hateoas<T>,
 }
 
-impl<T: Serialize + HateoasResource + DeserializeOwned> RickHateOas<T> {
-    pub fn into_inner(self) -> Hateoas<T> {
+impl<'de, T> serde::Deserialize<'de> for Hateoas<T>
+where
+    T: DeserializeOwned + Serialize + HateoasResource,
+{
+    fn deserialize<D>(deserializer: D) -> serde::__private::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        serde::__private::Result::map(
+            serde::Deserialize::deserialize(deserializer),
+            |transparent| Hateoas { inner: transparent },
+        )
+    }
+}
+
+impl<T: Serialize + HateoasResource + DeserializeOwned> Hateoas<T> {
+    pub fn into_inner(self) -> hateoas_response::Hateoas<T> {
         self.inner
     }
 }
 
-impl<T: Serialize + HateoasResource + DeserializeOwned> Deref for RickHateOas<T> {
-    type Target = Hateoas<T>;
+impl<T: Serialize + HateoasResource + DeserializeOwned> Deref for Hateoas<T> {
+    type Target = hateoas_response::Hateoas<T>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
-impl<T: Serialize + HateoasResource + DeserializeOwned> DerefMut for RickHateOas<T> {
+impl<T: Serialize + HateoasResource + DeserializeOwned> DerefMut for Hateoas<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }
-}
-
-pub struct Response<T: Serialize + HateoasResource + DeserializeOwned> {
-    phantom: PhantomData<T>,
 }
 
 macro_rules! auto_impl_hateoas_response_wrapper {
@@ -51,18 +64,18 @@ macro_rules! auto_impl_hateoas_response_wrapper {
             ($konst:ident);
         )+
     ) => {
-        impl<T: Serialize + HateoasResource + Default + DeserializeOwned> RickHateOas<T> {
+        impl<T: Serialize + HateoasResource + Default + DeserializeOwned> Hateoas<T> {
             $(
             $(#[$docs])*
             #[doc = " ```\n" ]
-            #[doc = " use ricksponse::hateoas::{RickHateOas, Content, Hateoas, Status};\n" ]
+            #[doc = " use ricksponse::hateoas::{Hateoas, prelude::{Content, Hateoas as prelude_Hateoas, Status}};\n" ]
             #[doc = " use std::ops::Deref;\n" ]
             #[doc = " \n" ]
-            #[doc = concat!(" let rickhateoas: RickHateOas<String> = RickHateOas::", stringify!($konst), "(\"test\".to_string());\n") ]
+            #[doc = concat!(" let rickhateoas: Hateoas<String> = Hateoas::", stringify!($konst), "(Some(\"test\".to_string()));\n") ]
             #[doc = " \n" ]
             #[doc = " assert_eq!(\n" ]
             #[doc = "     rickhateoas.deref(),\n" ]
-            #[doc = "     &Hateoas::new(\n" ]
+            #[doc = "     &prelude_Hateoas::new(\n" ]
             #[doc = concat!("         Some(Content::new(\"test\".to_string())),\n") ]
             #[doc = "         None,\n" ]
             #[doc = concat!("         Some(Status::", stringify!($konst), "())\n") ]
@@ -70,36 +83,9 @@ macro_rules! auto_impl_hateoas_response_wrapper {
             #[doc = " );\n" ]
             #[doc = " ``` "]
             #[allow(non_snake_case)]
-            pub fn $konst(t: T) -> RickHateOas<T> {
-                RickHateOas {
-                    inner: Hateoas::$konst(t),
-                }
-            }
-            )+
-        }
-
-        impl<T: Serialize + HateoasResource + Default + DeserializeOwned> Response<T> {
-            $(
-            $(#[$docs])*
-            #[doc = " ```\n" ]
-            #[doc = " use ricksponse::hateoas::{Response, RickHateOas, Content, Hateoas, Status};\n" ]
-            #[doc = " use std::ops::Deref;\n" ]
-            #[doc = " \n" ]
-            #[doc = concat!(" let rickhateoas: RickHateOas<String> = Response::", stringify!($konst), "(\"test\".to_string());\n") ]
-            #[doc = " \n" ]
-            #[doc = " assert_eq!(\n" ]
-            #[doc = "     rickhateoas.deref(),\n" ]
-            #[doc = "     &Hateoas::new(\n" ]
-            #[doc = concat!("         Some(Content::new(\"test\".to_string())),\n") ]
-            #[doc = "         None,\n" ]
-            #[doc = concat!("         Some(Status::", stringify!($konst), "())\n") ]
-            #[doc = "     )\n" ]
-            #[doc = " );\n" ]
-            #[doc = " ``` "]
-            #[allow(non_snake_case)]
-            pub fn $konst(t: T) -> RickHateOas<T> {
-                RickHateOas {
-                    inner: Hateoas::$konst(t),
+            pub fn $konst(t: Option<T>) -> Self {
+                Self {
+                    inner: hateoas_response::Hateoas::$konst(t),
                 }
             }
             )+
@@ -290,10 +276,10 @@ auto_impl_hateoas_response_wrapper! {
     (NETWORK_AUTHENTICATION_REQUIRED);
 }
 
-impl<T: Serialize + HateoasResource + DeserializeOwned + Default> From<RickHateOas<T>>
-    for Ricksponse<Hateoas<T>>
+impl<T: Serialize + HateoasResource + DeserializeOwned + Default> From<Hateoas<T>>
+    for Ricksponse<hateoas_response::Hateoas<T>>
 {
-    fn from(r: RickHateOas<T>) -> Self {
+    fn from(r: Hateoas<T>) -> Self {
         Ricksponse::Data {
             http_code: r
                 .status()
@@ -305,7 +291,7 @@ impl<T: Serialize + HateoasResource + DeserializeOwned + Default> From<RickHateO
     }
 }
 
-impl<T: Serialize + HateoasResource + DeserializeOwned + Default> Responder for RickHateOas<T> {
+impl<T: Serialize + HateoasResource + DeserializeOwned + Default> Responder for Hateoas<T> {
     type Body = BoxBody;
 
     fn respond_to(self, req: &HttpRequest) -> HttpResponse<Self::Body> {
@@ -318,7 +304,7 @@ impl<T: Serialize + HateoasResource + DeserializeOwned + Default> Responder for 
             content_type_collection = vec![ContentType::Json];
         }
 
-        let ricksponse: Ricksponse<Hateoas<T>> = self.into();
+        let ricksponse: Ricksponse<hateoas_response::Hateoas<T>> = self.into();
         match ricksponse {
             Ricksponse::Data {
                 data, http_code, ..
@@ -353,26 +339,27 @@ impl<T: Serialize + HateoasResource + DeserializeOwned + Default> Responder for 
 }
 
 impl<T: Serialize + HateoasResource + DeserializeOwned + Default>
-    From<Result<Hateoas<T>, PayloadError>> for RickHateOas<T>
+    From<Result<hateoas_response::Hateoas<T>, PayloadError>> for Hateoas<T>
 {
-    fn from(res: Result<Hateoas<T>, PayloadError>) -> Self {
+    fn from(res: Result<hateoas_response::Hateoas<T>, PayloadError>) -> Self {
         match res {
-            Ok(inner) => RickHateOas { inner },
+            Ok(inner) => Hateoas { inner },
             Err(e) => {
                 let mut status = Status::INTERNAL_SERVER_ERROR();
                 *status.message_mut() = Some(format!("{:?}", e));
-                let inner: Hateoas<T> = Hateoas::new(None, None, Some(status));
-                RickHateOas { inner }
+                let inner: hateoas_response::Hateoas<T> =
+                    hateoas_response::Hateoas::new(None, None, Some(status));
+                Hateoas { inner }
             }
         }
     }
 }
-impl<T> FromRequest for RickHateOas<T>
+impl<T> FromRequest for Hateoas<T>
 where
     T: Serialize + DeserializeOwned + HateoasResource + PayloadControl + Default,
 {
     type Error = Error;
-    type Future = PayloadFuture<T, Hateoas<T>, RickHateOas<T>>;
+    type Future = PayloadFuture<T, hateoas_response::Hateoas<T>, Hateoas<T>>;
 
     #[inline]
     fn from_request(req: &HttpRequest, payload: &mut actix_http::Payload) -> Self::Future {
@@ -382,9 +369,9 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::hateoas::RickHateOas;
+    use crate::hateoas::prelude;
+    use crate::hateoas::Hateoas;
     use actix_web::{http::header, test, web, App};
-    use hateoas_response::{Hateoas, HateoasResource};
     use serde_json;
     use std::ops::Deref;
 
@@ -405,7 +392,7 @@ mod test {
         }
     }
 
-    impl HateoasResource for RubberBullet {
+    impl prelude::HateoasResource for RubberBullet {
         const KIND: &'static str = "";
         const VERSION: &'static str = "";
         const GROUP: &'static str = "";
@@ -422,7 +409,7 @@ mod test {
         let app = test::init_service(
             App::new().service(
                 web::resource("/index.html")
-                    .route(web::post().to(|| async { RickHateOas::OK("welcome!".to_string()) })),
+                    .route(web::post().to(|| async { Hateoas::OK(Some("welcome!".to_string())) })),
             ),
         )
         .await;
@@ -439,18 +426,18 @@ mod test {
         println!("{}", raw_str);
         let content = serde_json::from_str::<Hateoas<String>>(raw_str).unwrap();
         println!("{:#?}", content);
-        assert_eq!(content, Hateoas::OK("welcome!".to_string()));
+        assert_eq!(content, Hateoas::OK(Some("welcome!".to_string())));
     }
 
     #[actix_web::test]
     async fn test_hateoas_rubber_bullet() {
-        let response = RickHateOas::OK(RubberBullet::default());
+        let response = Hateoas::OK(Some(RubberBullet::default()));
 
         let app = test::init_service(
-            App::new().service(
-                web::resource("/index.html")
-                    .route(web::post().to(|| async { RickHateOas::OK(RubberBullet::default()) })),
-            ),
+            App::new()
+                .service(web::resource("/index.html").route(
+                    web::post().to(|| async { Hateoas::OK(Some(RubberBullet::default())) }),
+                )),
         )
         .await;
 
@@ -466,20 +453,19 @@ mod test {
         println!("{}", raw_str);
         let content = serde_json::from_str::<Hateoas<RubberBullet>>(raw_str).unwrap();
         println!("{:#?}", content);
-        assert_eq!(&content, response.deref());
+        assert_eq!(content, response);
     }
 
     #[actix_web::test]
     async fn test_for_automated_impl_hateoas() {
-        use crate::hateoas::{Content, Hateoas, Status};
-        let rickhateoas: RickHateOas<String> = RickHateOas::OK("test".to_string());
+        let rickhateoas: Hateoas<String> = Hateoas::OK(Some("test".to_string()));
 
         assert_eq!(
             rickhateoas.deref(),
-            &Hateoas::new(
-                Some(Content::new("test".to_string())),
+            &prelude::Hateoas::new(
+                Some(prelude::Content::new("test".to_string())),
                 None,
-                Some(Status::OK())
+                Some(prelude::Status::OK())
             )
         );
     }

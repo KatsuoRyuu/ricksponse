@@ -1,6 +1,6 @@
 [package]
 name = "ricksponse"
-version = "0.1.4"
+version = "1.0.0"
 edition = "2021"
 authors = ["Anders Blenstrup-Pedersen <abp-git@ryuu.technology>"]
 description = "A request/response structure allowing for a multitude of encodings/decodings"
@@ -23,7 +23,7 @@ derive_more = "0.99.17"
 futures = "0.3.19"
 futures-core = "0.3.19"
 futures-util = "0.3.19"
-hateoas = {version = "0.1.4", optional = true}
+hateoas = {version = "1.0.0", optional = true}
 http = "0.2.6"
 mime = "0.3.16"
 railsgun = "2.0.0"
