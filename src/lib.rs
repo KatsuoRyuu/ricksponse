@@ -30,7 +30,9 @@ pub mod helpers_prelude {
 
 pub mod hateoas {
     pub use crate::entity::hateoas::*;
-    pub use hateoas_response::*;
+    pub mod prelude {
+        pub use hateoas_response::*;
+    }
 }
 
 #[cfg(test)]
